@@ -75,7 +75,7 @@ module divider_with_cross_laps(length, is_vertical = false) {
         if (is_vertical) {
             // Horizontal dividers intersect this vertical divider
             for (i = [1 : rows - 1]) {
-                translate([-tolerance, i * divider_height / rows - lap_width/2])
+                translate([-tolerance, i * row_length - lap_width/2])
                     square([length + tolerance * 2, lap_width]);
             }
         } else {
@@ -88,8 +88,15 @@ module divider_with_cross_laps(length, is_vertical = false) {
     }
 }
 
-// Layout all parts for cutting
-module layout_parts() {
+// Module for extruding 2D shapes to 3D with proper thickness
+module extrude_part(part_module, params) {
+    linear_extrude(height = material_thickness) {
+        part_module(params);
+    }
+}
+
+// Layout all parts for cutting (2D)
+module layout_parts_2d() {
     // Exterior walls (with box joints)
     // Bottom wall
     translate([0, 0])
@@ -121,5 +128,58 @@ module layout_parts() {
     }
 }
 
-// Set view to 2D for laser cutting
-projection() layout_parts();
+// Create 3D version for preview
+module preview_3d() {
+    // Exterior walls
+    color("SandyBrown") {
+        // Bottom wall
+        translate([0, 0, 0])
+            linear_extrude(height = material_thickness)
+                panel_with_box_joints(drawer_length, material_thickness, [0, 1, 0, 1]);
+        
+        // Top wall
+        translate([0, drawer_depth - material_thickness, 0])
+            linear_extrude(height = material_thickness)
+                panel_with_box_joints(drawer_length, material_thickness, [0, 1, 0, 1]);
+        
+        // Left wall
+        rotate([90, 0, 0])
+            translate([0, 0, 0])
+                linear_extrude(height = material_thickness)
+                    panel_with_box_joints(drawer_depth, divider_height, [1, 0, 1, 0]);
+        
+        // Right wall
+        rotate([90, 0, 0])
+            translate([drawer_length - material_thickness, 0, -drawer_depth])
+                linear_extrude(height = material_thickness)
+                    panel_with_box_joints(drawer_depth, divider_height, [1, 0, 1, 0]);
+    }
+    
+    // Vertical dividers
+    color("Peru") {
+        for (i = [1 : columns - 1]) {
+            rotate([90, 0, 0])
+                translate([i * column_width - material_thickness/2, 0, -drawer_depth])
+                    linear_extrude(height = drawer_depth)
+                        divider_with_cross_laps(divider_height, true);
+        }
+    }
+    
+    // Horizontal dividers
+    color("Sienna") {
+        for (i = [1 : rows - 1]) {
+            translate([0, i * row_length - material_thickness/2, 0])
+                linear_extrude(height = divider_height)
+                    divider_with_cross_laps(column_width * 2);
+        }
+    }
+}
+
+// Choose what to display
+if ($preview) {
+    // 3D preview for interactive view
+    preview_3d();
+} else {
+    // 2D projection for laser cutting
+    layout_parts_2d();
+}
