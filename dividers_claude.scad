@@ -17,169 +17,301 @@ row_length = drawer_length / rows;
 
 // Box joint parameters
 finger_count = 5; // Number of fingers for box joints
-finger_width = divider_height / (finger_count * 2 - 1);
-
-// Cross lap joint parameters
-lap_width = material_thickness;
+finger_width = divider_height / (finger_count * 2);
 
 // Tolerance for joints (adjust as needed for your laser cutter)
 tolerance = 0.1;
 
-// Module for creating a panel with box joints on specified edges
-module panel_with_box_joints(length, width, edges = [1, 1, 1, 1]) {
+// Function to create points for a box joint edge
+function box_joint_edge(length, num_fingers, finger_size, is_horizontal = true, is_reversed = false) = 
+    let(step = length / (num_fingers * 2))
+    [for (i = [0 : num_fingers * 2]) 
+        is_horizontal ? 
+            (is_reversed ? 
+                [i * step, (i % 2 == 0) ? 0 : finger_size] :
+                [i * step, (i % 2 == 0) ? finger_size : 0]) :
+            (is_reversed ? 
+                [(i % 2 == 0) ? 0 : finger_size, i * step] :
+                [(i % 2 == 0) ? finger_size : 0, i * step])
+    ];
+
+// Panel with box joints on all sides
+module exterior_panel(length, width, thickness, top_fingers = true, right_fingers = true, 
+                      bottom_fingers = true, left_fingers = true) {
+    finger_size = material_thickness;
+    
+    // Create the polygon points for the perimeter with box joints
+    points = [];
+    
+    // Bottom edge
+    bottom_edge = box_joint_edge(length, finger_count, finger_size, true, !bottom_fingers);
+    
+    // Right edge
+    right_edge = box_joint_edge(width, finger_count, finger_size, false, right_fingers);
+    for (i = [1:len(right_edge)-1]) {
+        points = concat(points, [[length + right_edge[i][0], right_edge[i][1]]]);
+    }
+    
+    // Top edge
+    top_edge = box_joint_edge(length, finger_count, finger_size, true, top_fingers);
+    for (i = [1:len(top_edge)-1]) {
+        points = concat(points, [[length - top_edge[i][0], width + top_edge[i][1]]]);
+    }
+    
+    // Left edge
+    left_edge = box_joint_edge(width, finger_count, finger_size, false, !left_fingers);
+    for (i = [1:len(left_edge)-1]) {
+        points = concat(points, [[0 - left_edge[i][0], width - left_edge[i][1]]]);
+    }
+    
+    polygon(concat([bottom_edge[0]], bottom_edge, [points[0]], points));
+}
+
+// Divider with cross lap joints
+module vertical_divider(height, length, row_positions) {
+    // Start with a rectangle
+    points = [[0, 0], [thickness, 0], [thickness, length], [0, length]];
+    
+    // Cross lap cutouts
+    for (pos = row_positions) {
+        notch_height = material_thickness;
+        notch_y = pos - notch_height/2;
+        
+        // This will be a complex polygon so we'll use difference() instead
+        difference() {
+            polygon(points);
+            translate([-tolerance, notch_y])
+                square([thickness + tolerance*2, notch_height]);
+        }
+    }
+}
+
+module horizontal_divider(length, height, column_positions) {
+    // Complex shape with notches for cross laps
     difference() {
-        square([length, width]);
+        square([length, height]);
         
-        // Add box joints on edges as specified
-        // edge order: bottom, right, top, left
-        
-        // Bottom edge
-        if (edges[0]) {
-            for (i = [1 : 2 : finger_count * 2 - 1]) {
-                translate([i * length / (finger_count * 2), -tolerance])
-                    square([length / (finger_count * 2), material_thickness + tolerance * 2]);
-            }
-        }
-        
-        // Right edge
-        if (edges[1]) {
-            for (i = [1 : 2 : finger_count * 2 - 1]) {
-                translate([length - material_thickness - tolerance, i * width / (finger_count * 2)])
-                    square([material_thickness + tolerance * 2, width / (finger_count * 2)]);
-            }
-        }
-        
-        // Top edge
-        if (edges[2]) {
-            for (i = [1 : 2 : finger_count * 2 - 1]) {
-                translate([i * length / (finger_count * 2), width - material_thickness - tolerance])
-                    square([length / (finger_count * 2), material_thickness + tolerance * 2]);
-            }
-        }
-        
-        // Left edge
-        if (edges[3]) {
-            for (i = [1 : 2 : finger_count * 2 - 1]) {
-                translate([-tolerance, i * width / (finger_count * 2)])
-                    square([material_thickness + tolerance * 2, width / (finger_count * 2)]);
-            }
+        // Cut notches for vertical dividers
+        for (pos = column_positions) {
+            translate([pos - material_thickness/2, -tolerance])
+                square([material_thickness, height + tolerance*2]);
         }
     }
 }
 
-// Module for creating a divider with cross lap cutouts
-module divider_with_cross_laps(length, is_vertical = false) {
-    difference() {
-        square([length, divider_height]);
-        
-        if (is_vertical) {
-            // Horizontal dividers intersect this vertical divider
-            for (i = [1 : rows - 1]) {
-                translate([-tolerance, i * row_length - lap_width/2])
-                    square([length + tolerance * 2, lap_width]);
-            }
-        } else {
-            // Vertical dividers intersect this horizontal divider
-            for (i = [1 : columns - 1]) {
-                translate([i * column_width - lap_width/2, -tolerance])
-                    square([lap_width, divider_height + tolerance * 2]);
-            }
-        }
-    }
-}
-
-// Module for extruding 2D shapes to 3D with proper thickness
-module extrude_part(part_module, params) {
-    linear_extrude(height = material_thickness) {
-        part_module(params);
-    }
-}
-
-// Layout all parts for cutting (2D)
-module layout_parts_2d() {
-    // Exterior walls (with box joints)
-    // Bottom wall
+// Layout all parts for laser cutting
+module layout_for_cutting() {
+    // Calculate row and column positions
+    row_positions = [for (i = [1:rows-1]) i * row_length];
+    column_positions = [for (i = [1:columns-1]) i * column_width];
+    
+    // Horizontal walls (top and bottom)
     translate([0, 0])
-        panel_with_box_joints(drawer_length, material_thickness, [0, 1, 0, 1]);
+        exterior_panel(drawer_length, material_thickness, material_thickness, 
+                     true, true, true, true);
     
-    // Top wall
     translate([0, material_thickness + 10])
-        panel_with_box_joints(drawer_length, material_thickness, [0, 1, 0, 1]);
+        exterior_panel(drawer_length, material_thickness, material_thickness, 
+                     true, true, true, true);
     
-    // Left wall
+    // Vertical walls (left and right)
     translate([0, material_thickness * 2 + 20])
-        panel_with_box_joints(drawer_depth, material_thickness, [1, 0, 1, 0]);
+        exterior_panel(drawer_depth, divider_height, material_thickness, 
+                     true, true, true, true);
     
-    // Right wall
     translate([drawer_depth + 10, material_thickness * 2 + 20])
-        panel_with_box_joints(drawer_depth, material_thickness, [1, 0, 1, 0]);
-    
-    // Vertical dividers (with cross laps)
-    for (i = [1 : columns - 1]) {
-        translate([0, material_thickness * 3 + 30 + (i-1) * (divider_height + 10)])
-            divider_with_cross_laps(drawer_depth, true);
-    }
-    
-    // Horizontal dividers (with cross laps)
-    for (i = [1 : rows - 1]) {
-        // Two shorter horizontal dividers for the first two columns
-        translate([drawer_depth + 10, material_thickness * 3 + 30 + (columns-1) * (divider_height + 10) + (i-1) * (divider_height + 10)])
-            divider_with_cross_laps(column_width * 2);
-    }
-}
-
-// Create 3D version for preview
-module preview_3d() {
-    // Exterior walls
-    color("SandyBrown") {
-        // Bottom wall
-        translate([0, 0, 0])
-            linear_extrude(height = material_thickness)
-                panel_with_box_joints(drawer_length, material_thickness, [0, 1, 0, 1]);
-        
-        // Top wall
-        translate([0, drawer_depth - material_thickness, 0])
-            linear_extrude(height = material_thickness)
-                panel_with_box_joints(drawer_length, material_thickness, [0, 1, 0, 1]);
-        
-        // Left wall
-        rotate([90, 0, 0])
-            translate([0, 0, 0])
-                linear_extrude(height = material_thickness)
-                    panel_with_box_joints(drawer_depth, divider_height, [1, 0, 1, 0]);
-        
-        // Right wall
-        rotate([90, 0, 0])
-            translate([drawer_length - material_thickness, 0, -drawer_depth])
-                linear_extrude(height = material_thickness)
-                    panel_with_box_joints(drawer_depth, divider_height, [1, 0, 1, 0]);
-    }
+        exterior_panel(drawer_depth, divider_height, material_thickness, 
+                     true, true, true, true);
     
     // Vertical dividers
-    color("Peru") {
-        for (i = [1 : columns - 1]) {
-            rotate([90, 0, 0])
-                translate([i * column_width - material_thickness/2, 0, -drawer_depth])
-                    linear_extrude(height = drawer_depth)
-                        divider_with_cross_laps(divider_height, true);
+    for (i = [1:columns-1]) {
+        translate([0, material_thickness * 2 + divider_height + 30 + (i-1) * (divider_height + 10)])
+            horizontal_divider(drawer_depth, divider_height, []);
+    }
+    
+    // Horizontal dividers (for 2 columns only)
+    for (i = [1:rows-1]) {
+        translate([drawer_depth + 10, material_thickness * 2 + divider_height + 30 + (columns-1) * (divider_height + 10) + (i-1) * (divider_height + 10)])
+            horizontal_divider(column_width * 2, divider_height, column_positions);
+    }
+}
+
+// Generate alternative design with simple tab and slot joints
+module alternative_design() {
+    // Vertical dividers (full height)
+    for (i = [1:columns-1]) {
+        x = i * column_width;
+        translate([x - material_thickness/2, 0, 0]) {
+            difference() {
+                square([material_thickness, drawer_depth]);
+                
+                // Slots for horizontal dividers
+                for (j = [1:rows-1]) {
+                    if (x <= column_width * 2) { // Only for first two columns
+                        y = j * row_length;
+                        translate([-tolerance, y - material_thickness/2])
+                            square([material_thickness + tolerance*2, material_thickness]);
+                    }
+                }
+            }
         }
     }
     
-    // Horizontal dividers
-    color("Sienna") {
-        for (i = [1 : rows - 1]) {
-            translate([0, i * row_length - material_thickness/2, 0])
-                linear_extrude(height = divider_height)
-                    divider_with_cross_laps(column_width * 2);
+    // Horizontal dividers (for first two columns only)
+    for (j = [1:rows-1]) {
+        y = j * row_length;
+        translate([0, y - material_thickness/2, 0]) {
+            difference() {
+                square([column_width * 2, material_thickness]);
+                
+                // Slots for vertical dividers
+                for (i = [1:columns-1]) {
+                    x = i * column_width;
+                    if (x <= column_width * 2) { // Only for dividers within range
+                        translate([x - material_thickness/2, -tolerance])
+                            square([material_thickness, material_thickness + tolerance*2]);
+                    }
+                }
+            }
+        }
+    }
+    
+    // Outer frame
+    difference() {
+        square([drawer_length, drawer_depth]);
+        translate([material_thickness, material_thickness])
+            square([drawer_length - material_thickness*2, drawer_depth - material_thickness*2]);
+        
+        // Slots for vertical dividers in outer frame
+        for (i = [1:columns-1]) {
+            x = i * column_width;
+            
+            // Bottom edge
+            translate([x - material_thickness/2, 0])
+                square([material_thickness, material_thickness]);
+            
+            // Top edge
+            translate([x - material_thickness/2, drawer_depth - material_thickness])
+                square([material_thickness, material_thickness]);
+        }
+        
+        // Slots for horizontal dividers in outer frame
+        for (j = [1:rows-1]) {
+            y = j * row_length;
+            
+            // Left edge (only for dividers in first two columns)
+            translate([0, y - material_thickness/2])
+                square([material_thickness, material_thickness]);
+            
+            // Right edge of second column
+            translate([column_width * 2 - material_thickness, y - material_thickness/2])
+                square([material_thickness, material_thickness]);
         }
     }
 }
 
-// Choose what to display
-if ($preview) {
-    // 3D preview for interactive view
-    preview_3d();
-} else {
-    // 2D projection for laser cutting
-    layout_parts_2d();
+// Layout parts for export
+module final_layout() {
+    // Exterior walls
+    // Bottom wall
+    translate([0, 0]) {
+        difference() {
+            square([drawer_length, material_thickness]);
+            
+            // Slots for vertical dividers
+            for (i = [1:columns-1]) {
+                x = i * column_width;
+                translate([x - material_thickness/2, -tolerance])
+                    square([material_thickness, material_thickness + tolerance*2]);
+            }
+        }
+    }
+    
+    // Top wall
+    translate([0, material_thickness + 10]) {
+        difference() {
+            square([drawer_length, material_thickness]);
+            
+            // Slots for vertical dividers
+            for (i = [1:columns-1]) {
+                x = i * column_width;
+                translate([x - material_thickness/2, -tolerance])
+                    square([material_thickness, material_thickness + tolerance*2]);
+            }
+        }
+    }
+    
+    // Left wall
+    translate([0, material_thickness * 2 + 20]) {
+        difference() {
+            square([material_thickness, drawer_depth]);
+            
+            // Slots for horizontal dividers
+            for (j = [1:rows-1]) {
+                y = j * row_length;
+                translate([-tolerance, y - material_thickness/2])
+                    square([material_thickness + tolerance*2, material_thickness]);
+            }
+        }
+    }
+    
+    // Right wall
+    translate([material_thickness + 10, material_thickness * 2 + 20]) {
+        difference() {
+            square([material_thickness, drawer_depth]);
+            
+            // No slots needed as this is the rightmost wall
+        }
+    }
+    
+    // Far right wall (at column 2)
+    translate([material_thickness*2 + 20, material_thickness * 2 + 20]) {
+        difference() {
+            square([material_thickness, drawer_depth]);
+            
+            // Slots for horizontal dividers
+            for (j = [1:rows-1]) {
+                y = j * row_length;
+                translate([-tolerance, y - material_thickness/2])
+                    square([material_thickness + tolerance*2, material_thickness]);
+            }
+        }
+    }
+    
+    // Vertical dividers (with cross lap joints)
+    y_offset = material_thickness * 2 + drawer_depth + 30;
+    
+    for (i = [1:columns-1]) {
+        translate([0, y_offset + (i-1) * (divider_height + 10)]) {
+            difference() {
+                square([drawer_depth, divider_height]);
+                
+                // Cross lap cutouts for horizontal dividers
+                for (j = [1:rows-1]) {
+                    if (i * column_width <= column_width * 2) { // Only for first two columns
+                        translate([i * column_width - material_thickness/2, -tolerance])
+                            square([material_thickness, divider_height + tolerance*2]);
+                    }
+                }
+            }
+        }
+    }
+    
+    // Horizontal divider (spans first two columns)
+    translate([0, y_offset + (columns-1) * (divider_height + 10)]) {
+        difference() {
+            square([column_width * 2, divider_height]);
+            
+            // Cross lap cutouts for vertical dividers
+            for (i = [1:columns-1]) {
+                if (i * column_width <= column_width * 2) {
+                    translate([i * column_width - material_thickness/2, -tolerance])
+                        square([material_thickness, divider_height + tolerance*2]);
+                }
+            }
+        }
+    }
 }
+
+// Choose what to render
+final_layout(); 
