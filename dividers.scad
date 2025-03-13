@@ -171,8 +171,8 @@ polygon(COL_RIGHT_VEC, COL_RIGHT_PATHS);
 // Cross piece.
 CROSS_VEC = concat(
     ext_box_join_c,
-    [ for (v = ext_box_join_b) [v[0] + 2/3 * W, v[1]]],
-    [ for (v = cross_lap_join) [v[0] + W/3, v[1] + H / 2]]
+    [ for (v = ext_box_join_b) [v[0] + 2/3 * W + MAT_THICK/2, v[1]]],
+    [ for (v = cross_lap_join) [v[0] + 1/3 * W, v[1] + H / 2]]
 );
 CROSS_PATHS = [
     concat(
