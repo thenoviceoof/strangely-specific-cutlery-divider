@@ -4,8 +4,8 @@
  * Definitions.
  * #################### */
 
-W = 248;
-L = 489;
+W = 248 - 2;
+L = 489 - 5;
 H = 25.4 * 3;
 
 // How thick the material is.
