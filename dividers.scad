@@ -9,11 +9,11 @@ L = 489;
 H = 25.4 * 3;
 
 // How thick the material is.
-MAT_THICK = 5.4;
+MAT_THICK = 3.0;
 // How wide the laser is.
 KERF = 0;
 // Cut away just a little more, to make assembly easier/possible.
-SLOP = 0.2;
+SLOP = 0.15;
 // Total adjustments: positive values cut away more.
 ADJ = SLOP - KERF;
 
@@ -99,7 +99,7 @@ FRONT_PATHS = [
     [for (i = [44:47]) i]
 ];
 projection()
-translate([W + EXT_PAD, 4*(H+EXT_PAD), 0])
+translate([W + EXT_PAD/2, 4*(H+EXT_PAD), 0])
 linear_extrude(height=MAT_THICK)
 polygon(FRONT_VEC, FRONT_PATHS);
     
