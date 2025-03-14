@@ -17,6 +17,8 @@ SLOP = 0.2;
 // Total adjustments: positive values cut away more.
 ADJ = SLOP - KERF;
 
+EXT_PAD = 5;
+
 /* ####################
  * Utilities
  * #################### */
@@ -72,7 +74,7 @@ RIGHT_VEC = concat(
     [ for (v = ext_box_join_b) [v[0] + L, v[1]]]
 );
 projection()
-translate([0, 6*(H+10), 0])
+translate([0, 3*(H+EXT_PAD), 0])
 linear_extrude(height=MAT_THICK)
 polygon(RIGHT_VEC);
 
@@ -97,13 +99,13 @@ FRONT_PATHS = [
     [for (i = [44:47]) i]
 ];
 projection()
-translate([0, 5*(H+10), 0])
+translate([W + EXT_PAD, 4*(H+EXT_PAD), 0])
 linear_extrude(height=MAT_THICK)
 polygon(FRONT_VEC, FRONT_PATHS);
     
 // Use the same geometry for the back.
 projection()
-translate([0, 4*(H+10), 0])
+translate([0, 4*(H+EXT_PAD), 0])
 linear_extrude(height=MAT_THICK)
 polygon(FRONT_VEC, FRONT_PATHS);
 
@@ -124,7 +126,7 @@ LEFT_PATHS = [
     [for (i = [32:35]) i]
 ];
 projection()
-translate([0, 3*(H+10), 0])
+translate([0, 2*(H+EXT_PAD), 0])
 linear_extrude(height=MAT_THICK)
 polygon(LEFT_VEC, LEFT_PATHS);
 
@@ -143,7 +145,7 @@ COL_LEFT_PATHS = [
     )
 ];
 projection()
-translate([0, 2*(H+10), 0])
+translate([0, 1*(H+EXT_PAD), 0])
 linear_extrude(height=MAT_THICK)
 polygon(COL_LEFT_VEC, COL_LEFT_PATHS);
 
@@ -164,7 +166,7 @@ COL_RIGHT_PATHS = [
     [for (i = [32:35]) i]
 ];
 projection()
-translate([0, 1*(H+10), 0])
+translate([0, 0, 0])
 linear_extrude(height=MAT_THICK)
 polygon(COL_RIGHT_VEC, COL_RIGHT_PATHS);
 
@@ -183,6 +185,7 @@ CROSS_PATHS = [
     )
 ];
 projection()
-translate([0, 0*(H+10), 0])
+translate([L+EXT_PAD + H, 0, 0])
+rotate(90)
 linear_extrude(height=MAT_THICK)
 polygon(CROSS_VEC, CROSS_PATHS);
