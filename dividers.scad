@@ -9,11 +9,14 @@ L = 489;
 H = 25.4 * 3;
 
 // How thick the material is.
-MAT_THICK = 3.0;
+MAT_THICK = 3.175;
 // How wide the laser is.
+// Ponoko: 0.2mm beam width.
+// SendCutSend: handled by them.
 KERF = 0;
 // Cut away just a little more, to make assembly easier/possible.
-SLOP = 0.15;
+// SendCutSend MDF Tab/Slot tolerance is 0.01in, 0.25mm.
+SLOP = 0.25;
 // Total adjustments: positive values cut away more.
 ADJ = SLOP - KERF;
 
