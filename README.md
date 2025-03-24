@@ -1,5 +1,7 @@
 This is a 2D OpenSCAD plan for a cutlery divider for a very specific drawer.
 
+The only files kept reasonably up to date are dividers.scad and dividers.dxf.
+
 # Dimension measurements
 
 Drawer is 248x489mm (9.76x19.25in).
