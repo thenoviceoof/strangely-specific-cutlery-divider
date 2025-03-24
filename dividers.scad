@@ -4,8 +4,10 @@
  * Definitions.
  * #################### */
 
-W = 248 - 2;
-L = 489 - 5;
+// Downsize a bit to make sure there's space.
+// We can always add padding, but reducing size is basically impossible.
+W = 248 - 10;
+L = 483 - 20;
 // 3in in height.
 H = 25.4 * 2.8;
 
