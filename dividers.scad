@@ -19,6 +19,7 @@ MAT_THICK = 3;
 KERF = 0.1;
 // Cut away just a little more, to make assembly easier/possible.
 // SendCutSend MDF Tab/Slot tolerance is 0.01in, 0.25mm.
+// It is possible this should be 1/2x 0.25mm.
 SLOP = 0.25;
 // Total adjustments: positive values cut away more.
 ADJ = SLOP - KERF;
